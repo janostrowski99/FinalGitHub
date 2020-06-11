@@ -12,7 +12,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.Field;
+import java.text.DecimalFormat;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import javax.imageio.ImageIO;
 import javax.swing.JButton;
@@ -24,6 +26,9 @@ import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+
 /* Poker
  * Autorzy: Jan Ostrowski, Maurycy Muzyka
  * 
@@ -36,14 +41,14 @@ import javax.swing.JTextField;
  * import partii z pliku - Rozgrywka
  * github
  * waluta w grze
+ * zapisywanie statystyk zwyciêstw/... do pliku txt - automatyczne importowanie przy ka¿dym w³¹czeniu gry
+ * wersja anglojêzyczna (polskie napisy maj¹ komentarze w kodzie, wiêc ³atwo)
+ * ulepszenie waluty gry (premiowane winstreaki +10% monet za ka¿de zwyciêctwo z rzêdu)
+ * mo¿liwoœc zakupu innego wygl¹du kart
  * 
  * Do zrobienia:
- * 1 ulepszenie waluty gry (premiowane winstreaki? - do ustalenia)
- * 2 zapisywanie statystyk zwyciêstw/... do pliku txt - automatyczne importowanie przy ka¿dym w³¹czeniu gry
- * 3 mo¿liwoœc zakupu innego wygl¹du kart
- * 4 wersja anglojêzyczna (polskie napisy maj¹ komentarze w kodzie, wiêc ³atwo)
- * 5 dzwieki
- * 6 bot insane - analiza gry gracza 
+ * 1 dzwieki
+ * 2 bot insane - analiza gry gracza 
  */
 public class Poker extends JFrame {
 
@@ -54,8 +59,9 @@ public class Poker extends JFrame {
 	JPanel glownyPanel, statsPanel;
 	JPanel gora, lewa, srodek, prawa, dol, glosnoscPanel;
 	JLabel napisGlowny, poziomyTrudnosci;
-	JButton lvl1, lvl2, lvl3, mute, importuj, zapisz, wyjscie;
-	JSlider regulacjaGlosnosci;
+	JButton lvl1, lvl2, lvl3, lvl4, sklep, importuj, zapisz, wyjscie;
+	JSlider jezykSlider;
+	JLabel pl, ang;
 	JTextField moneyCount, winsSession, losesSession, drawsSession, winRatioSession;
 	
 	JPanel statsS, stats1, stats2, stats3, statsAll;
@@ -77,14 +83,14 @@ public class Poker extends JFrame {
 	
 	//zmienne
 	static final int SLIDER_MIN = 0; 
-	static final int SLIDER_MAX = 100;
-	static final int SLIDER_INIT = 50;
-	int money = 100; //zachowywane przy wy³¹czaniu gry
+	static final int SLIDER_MAX = 1;
+	static final int SLIDER_INIT = 0;
+	int money; //zachowywane przy wy³¹czaniu gry
 	int[] wins = new int[4]; //0-³atwy; 1-œredni; 2-trudny; 3-³¹cznie; zachowywane przy wy³¹czaniu gry
 	int[] loses = new int[4];
 	int[] draws = new int[4];
 	int[] games = new int[4];
-	int[] winRatio = new int[4];
+	double[] winRatio = new double[4];
 	int[] memory = new int[20]; //statystyki sesji
 	int winsS = 0; //wy³¹cznie w tej sesji
 	int losesS = 0;
@@ -93,13 +99,71 @@ public class Poker extends JFrame {
 	double winRatioS = 0.0;
 	int odrz = 0; //ile kart odrzucil przeciwnik
 	String koloryWy, figuryWy, tekstWy;
+	String[] daneTemp;
 	int ukl1, ukl2, wynik; //temp uk³adów i kto wygra³ do zapisania do pliku
+	int jezyk = 0; //0 - polski, 1 - angielski
+	int streak = 0; //win streak
+	int awers = 0; //awers
+	private static DecimalFormat df = new DecimalFormat("0.00"); //wyœwietlanie winstreaka 2 decimal places
 	
 	public Poker() throws HeadlessException { //---------------------------------konstruktor
-		this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-		this.setSize(800,400);
+		this.setDefaultCloseOperation(EXIT_ON_CLOSE);
+		this.setSize(850,400);
 		this.setLayout(new BorderLayout());
 		this.setTitle("Poker | Menu g³ówne");
+		
+		File fileTemp = new File("temp.txt"); 
+		if(!fileTemp.exists()) { //pierwsze wl¹czenie gry ever
+			money = 100;
+			for(int i=1;i<11;i++) {
+				memory[i]=0;
+			}
+			FileWriter plikWyjs;
+			try {
+				plikWyjs = new FileWriter(fileTemp);
+				//if(!file4.exists())
+					plikWyjs.write("100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"); //100 monet i wyzerowane statystyki
+				plikWyjs.close();
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+		}
+		else { //import statystyk globalnych
+			
+			try {
+				JTextField tekstWej = new JTextField();
+				tekstWej.read(new FileReader(fileTemp), null);
+					//System.out.println(tekstWej.getText());
+				String dane2 = tekstWej.getText();
+				daneTemp = dane2.split("\\s");
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+			//
+			money = Integer.parseInt(daneTemp[0]);
+			for(int i=0; i<3; i++) {
+				wins[i] = Integer.parseInt(daneTemp[3*i+1]);
+				loses[i] = Integer.parseInt(daneTemp[3*i+2]);
+				draws[i] = Integer.parseInt(daneTemp[3*i+3]);
+			}
+			for(int i=0; i<10; i++) {
+				memory[i] = Integer.parseInt(daneTemp[i+13]);
+			}
+			streak = Integer.parseInt(daneTemp[24]);
+			awers = Integer.parseInt(daneTemp[25]);
+			
+			wins[3] = wins[0]+wins[1]+wins[2];
+			loses[3] = loses[0]+loses[1]+loses[2];
+			draws[3] = draws[0]+draws[1]+draws[2];
+			for(int i=0; i<4; i++) {
+				games[i] = wins[i]+loses[i]+draws[i];
+				winRatio[i] = (double) 100*wins[i]/games[i];
+			}
+			memory[10] = memory[0];
+			for(int i=1; i<10; i++)
+				memory[10] += memory[i];
+		}
+		
 		//panele
 		tabbedPane = new JTabbedPane();
 		glownyPanel = new JPanel();
@@ -118,28 +182,30 @@ public class Poker extends JFrame {
 		statsAll = new JPanel();
 		
 		//elementy wizualne 
-			//jêzyk polski
 		napisGlowny = new JLabel("POKER");
 		poziomyTrudnosci = new JLabel("Poziom trudnoœci");
 		lvl1 = new JButton("£atwy");
 		lvl2 = new JButton("Œredni");
 		lvl3 = new JButton("Trudny (UWAGA! d³ugi czas kalkulacji)");
-		mute = new JButton("Mute");
+		lvl4 = new JButton("Eksperymentalny (d³ugi czas kalkulacji)");
+		sklep = new JButton("Kup inny awers kart za 150 monet");
+		sklep.setBounds(0, 0, 500, 500);
 		importuj = new JButton("Importuj partiê");
 		zapisz = new JButton("Zapisz ostatnio zagran¹ partiê");
 		wyjscie = new JButton("Wyjœcie");
 		
-		regulacjaGlosnosci = new JSlider(JSlider.HORIZONTAL, SLIDER_MIN, SLIDER_MAX, SLIDER_INIT);
+		jezykSlider = new JSlider(JSlider.HORIZONTAL, SLIDER_MIN, SLIDER_MAX, SLIDER_INIT);
+		jezykSlider.addChangeListener(new SliderChangeListener());
 		moneyCount = new JTextField(String.format("%d", money));
 		winsSession = new JTextField(String.format("%d", winsS));
 		losesSession = new JTextField(String.format("%d", losesS));
 		drawsSession = new JTextField(String.format("%d", drawsS));
 		winRatioSession = new JTextField("NDF");
-		
+		pl = new JLabel("  Polski");
+		ang = new JLabel("English  ");
 		
 		//wstawianie elemenów wizualnych
 		this.add(tabbedPane);
-			//jêzyk polski
 		tabbedPane.addTab("Menu G³ówne", glownyPanel);
 		tabbedPane.addTab("Statystyki", statsPanel);
 		
@@ -149,7 +215,7 @@ public class Poker extends JFrame {
 		glownyPanel.add(srodek, BorderLayout.CENTER);
 		glownyPanel.add(prawa, BorderLayout.EAST);
 		glownyPanel.add(dol, BorderLayout.SOUTH);
-		lewa.setLayout(new GridLayout(4,1));
+		lewa.setLayout(new GridLayout(5,1));
 		srodek.setLayout(new GridLayout(1,1));
 		prawa.setLayout(new GridLayout(4,1));
 		dol.setLayout(new GridLayout(1,10));
@@ -158,9 +224,12 @@ public class Poker extends JFrame {
 		lewa.add(lvl1);
 		lewa.add(lvl2);
 		lewa.add(lvl3);
+		lewa.add(lvl4);
+		srodek.add(sklep);
 		prawa.add(glosnoscPanel);
-		glosnoscPanel.add(mute);
-		glosnoscPanel.add(regulacjaGlosnosci);
+		glosnoscPanel.add(pl);
+		glosnoscPanel.add(jezykSlider);
+		glosnoscPanel.add(ang);
 		prawa.add(importuj);
 		prawa.add(zapisz);
 		prawa.add(wyjscie);
@@ -183,16 +252,28 @@ public class Poker extends JFrame {
 		karo9 = null; karo10 = null; karoW = null; karoQ = null; karoK = null; karoA = null;
 		trefl9 = null; trefl10 = null; treflW = null; treflQ = null; treflK = null; treflA = null;
 		
-		pikk9 = robKarte(pik9,"pik9"); 		pikk10 = robKarte(pik10,"pik10"); 		pikkW = robKarte(pikW,"pikW"); 
-		pikkQ = robKarte(pikQ,"pikQ"); 		pikkK = robKarte(pikK,"pikK"); 			pikkA = robKarte(pikA,"pikA"); 
-		kierr9 = robKarte(kier9,"kier9"); 	kierr10 = robKarte(kier10,"kier10");	kierrW = robKarte(kierW,"kierW");
-		kierrQ = robKarte(kierQ,"kierQ"); 	kierrK = robKarte(kierK,"kierK"); 		kierrA = robKarte(kierA,"kierA");
-		karoo9 = robKarte(karo9,"karo9"); 	karoo10 = robKarte(karo10,"karo10"); 	karooW = robKarte(karoW,"karoW");
-		karooQ = robKarte(karoQ,"karoQ"); 	karooK = robKarte(karoK,"karoK"); 		karooA = robKarte(karoA,"karoA");
-		trefll9 = robKarte(trefl9,"trefl9");trefll10 = robKarte(trefl10,"trefl10"); trefllW = robKarte(treflW,"treflW"); 
-		trefllQ = robKarte(treflQ,"treflQ");trefllK = robKarte(treflK,"treflK"); 	trefllA = robKarte(treflA,"treflA"); 
-
-		//stats
+		if(awers==0) {
+			pikk9 = robKarte(pik9,"pik9"); 		pikk10 = robKarte(pik10,"pik10"); 		pikkW = robKarte(pikW,"pikW"); 
+			pikkQ = robKarte(pikQ,"pikQ"); 		pikkK = robKarte(pikK,"pikK"); 			pikkA = robKarte(pikA,"pikA"); 
+			kierr9 = robKarte(kier9,"kier9"); 	kierr10 = robKarte(kier10,"kier10");	kierrW = robKarte(kierW,"kierW");
+			kierrQ = robKarte(kierQ,"kierQ"); 	kierrK = robKarte(kierK,"kierK"); 		kierrA = robKarte(kierA,"kierA");
+			karoo9 = robKarte(karo9,"karo9"); 	karoo10 = robKarte(karo10,"karo10"); 	karooW = robKarte(karoW,"karoW");
+			karooQ = robKarte(karoQ,"karoQ"); 	karooK = robKarte(karoK,"karoK"); 		karooA = robKarte(karoA,"karoA");
+			trefll9 = robKarte(trefl9,"trefl9");trefll10 = robKarte(trefl10,"trefl10"); trefllW = robKarte(treflW,"treflW"); 
+			trefllQ = robKarte(treflQ,"treflQ");trefllK = robKarte(treflK,"treflK"); 	trefllA = robKarte(treflA,"treflA"); 
+		}
+		if(awers==1) {
+			pikk9 = robKarte2(pik9,"pik9"); 	pikk10 = robKarte2(pik10,"pik10"); 		pikkW = robKarte2(pikW,"pikW"); 
+			pikkQ = robKarte2(pikQ,"pikQ"); 	pikkK = robKarte2(pikK,"pikK"); 		pikkA = robKarte2(pikA,"pikA"); 
+			kierr9 = robKarte2(kier9,"kier9"); 	kierr10 = robKarte2(kier10,"kier10");	kierrW = robKarte2(kierW,"kierW");
+			kierrQ = robKarte2(kierQ,"kierQ"); 	kierrK = robKarte2(kierK,"kierK"); 		kierrA = robKarte2(kierA,"kierA");
+			karoo9 = robKarte2(karo9,"karo9"); 	karoo10 = robKarte2(karo10,"karo10"); 	karooW = robKarte2(karoW,"karoW");
+			karooQ = robKarte2(karoQ,"karoQ"); 	karooK = robKarte2(karoK,"karoK"); 		karooA = robKarte2(karoA,"karoA");
+			trefll9 = robKarte2(trefl9,"trefl9");trefll10 = robKarte2(trefl10,"trefl10");trefllW = robKarte2(treflW,"treflW"); 
+			trefllQ = robKarte2(treflQ,"treflQ");trefllK = robKarte2(treflK,"treflK"); 	trefllA = robKarte2(treflA,"treflA"); 
+		}
+		
+		//panel statystyk
 		statsPanel.setLayout(new GridLayout(1,5));
 		statsPanel.add(statsS);
 		statsPanel.add(stats1);
@@ -204,32 +285,17 @@ public class Poker extends JFrame {
 		stats2.setLayout(new GridLayout(11,1));
 		stats3.setLayout(new GridLayout(11,1));
 		statsAll.setLayout(new GridLayout(11,1));
-
-		for(int i=1;i<11;i++) {
-			memory[i]=0;
-		}
-		String infoS0 = "Twoje uk³ady w tej sesji";
-		String infoS1 = "Brak uk³adu "+memory[1];
-		String infoS2 = "Para        "+memory[2];
-		String infoS3 = "2 Pary      "+memory[3];
-		String infoS4 = "Trójka      "+memory[4];
-		String infoS5 = "Streat      "+memory[5];
-		String infoS6 = "Full        "+memory[6];
-		String infoS7 = "Kolor       "+memory[7];
-		String infoS8 = "Kareta      "+memory[8];
-		String infoS9 = "Poker       "+memory[9];
-		String infoS10= "£¹cznie     "+memory[10];
-		infS0 = new JLabel(infoS0);
-		infS1 = new JLabel(infoS1);
-		infS2 = new JLabel(infoS2);
-		infS3 = new JLabel(infoS3);
-		infS4 = new JLabel(infoS4);
-		infS5 = new JLabel(infoS5);
-		infS6 = new JLabel(infoS6);
-		infS7 = new JLabel(infoS7);
-		infS8 = new JLabel(infoS8);
-		infS9 = new JLabel(infoS9);
-		infS10 = new JLabel(infoS10);
+		infS0 = new JLabel("Twoje uk³ady karciane:");
+		infS1 = new JLabel("Brak uk³adu "+memory[1]);
+		infS2 = new JLabel("Para        "+memory[2]);
+		infS3 = new JLabel("2 Pary      "+memory[3]);
+		infS4 = new JLabel("Trójka      "+memory[4]);
+		infS5 = new JLabel("Streat      "+memory[5]);
+		infS6 = new JLabel("Full        "+memory[6]);
+		infS7 = new JLabel("Kolor       "+memory[7]);
+		infS8 = new JLabel("Kareta      "+memory[8]);
+		infS9 = new JLabel("Poker       "+memory[9]);
+		infS10 = new JLabel("£¹cznie     "+memory[10]);
 		statsS.add(infS0);
 		statsS.add(infS1);
 		statsS.add(infS2);
@@ -241,72 +307,48 @@ public class Poker extends JFrame {
 		statsS.add(infS8);
 		statsS.add(infS9);
 		statsS.add(infS10);
-		String infoA0 = "Poziom: ³atwy";
-		String infoA1 = "Zwyciêstwa   "+wins[0];
-		String infoA2 = "Przegrane    "+loses[0];
-		String infoA3 = "Remisy       "+draws[0];
-		String infoA4 = "£¹cznie      "+games[0];
-		String infoA5 = "% zwyciêstw  "+winRatio[0];
-		infA0 = new JLabel(infoA0);
-		infA1 = new JLabel(infoA1);
-		infA2 = new JLabel(infoA2);
-		infA3 = new JLabel(infoA3);
-		infA4 = new JLabel(infoA4);
-		infA5 = new JLabel(infoA5);
+		infA0 = new JLabel("Poziom: ³atwy");
+		infA1 = new JLabel("Zwyciêstwa   "+wins[0]);
+		infA2 = new JLabel("Przegrane    "+loses[0]);
+		infA3 = new JLabel("Remisy       "+draws[0]);
+		infA4 = new JLabel("£¹cznie      "+games[0]);
+		infA5 = new JLabel("% zwyciêstw  "+df.format(winRatio[0]));
 		stats1.add(infA0);
 		stats1.add(infA1);
 		stats1.add(infA2);
 		stats1.add(infA3);
 		stats1.add(infA4);
 		stats1.add(infA5);
-		String infoB0 = "Poziom: œredni";
-		String infoB1 = "Zwyciêstwa   "+wins[1];
-		String infoB2 = "Przegrane    "+loses[1];
-		String infoB3 = "Remisy       "+draws[1];
-		String infoB4 = "£¹cznie      "+games[1];
-		String infoB5 = "% zwyciêstw  "+winRatio[1];
-		infB0 = new JLabel(infoB0);
-		infB1 = new JLabel(infoB1);
-		infB2 = new JLabel(infoB2);
-		infB3 = new JLabel(infoB3);
-		infB4 = new JLabel(infoB4);
-		infB5 = new JLabel(infoB5);
+		infB0 = new JLabel("Poziom: œredni");
+		infB1 = new JLabel("Zwyciêstwa   "+wins[1]);
+		infB2 = new JLabel("Przegrane    "+loses[1]);
+		infB3 = new JLabel("Remisy       "+draws[1]);
+		infB4 = new JLabel("£¹cznie      "+games[1]);
+		infB5 = new JLabel("% zwyciêstw  "+df.format(winRatio[1]));
 		stats2.add(infB0);
 		stats2.add(infB1);
 		stats2.add(infB2);
 		stats2.add(infB3);
 		stats2.add(infB4);
 		stats2.add(infB5);
-		String infoC0 = "Poziom: trudny";
-		String infoC1 = "Zwyciêstwa   "+wins[2];
-		String infoC2 = "Przegrane    "+loses[2];
-		String infoC3 = "Remisy       "+draws[2];
-		String infoC4 = "£¹cznie      "+games[2];
-		String infoC5 = "% zwyciêstw  "+winRatio[2];
-		infC0 = new JLabel(infoC0);
-		infC1 = new JLabel(infoC1);
-		infC2 = new JLabel(infoC2);
-		infC3 = new JLabel(infoC3);
-		infC4 = new JLabel(infoC4);
-		infC5 = new JLabel(infoC5);
+		infC0 = new JLabel("Poziom: trudny");
+		infC1 = new JLabel("Zwyciêstwa   "+wins[2]);
+		infC2 = new JLabel("Przegrane    "+loses[2]);
+		infC3 = new JLabel("Remisy       "+draws[2]);
+		infC4 = new JLabel("£¹cznie      "+games[2]);
+		infC5 = new JLabel("% zwyciêstw  "+df.format(winRatio[2]));
 		stats3.add(infC0);
 		stats3.add(infC1);
 		stats3.add(infC2);
 		stats3.add(infC3);
 		stats3.add(infC4);
 		stats3.add(infC5);
-		String infoD0 = "£¹cznie";
-		String infoD1 = "Zwyciêstwa   "+wins[3];
-		String infoD2 = "Przegrane    "+loses[3];
-		String infoD3 = "Remisy       "+draws[3];
-		String infoD4 = "£¹cznie      "+games[3];
-		String infoD5 = "% zwyciêstw  "+winRatio[3];
-		infD0 = new JLabel(infoD0);
-		infD1 = new JLabel(infoD1);
-		infD2 = new JLabel(infoD2);
-		infD3 = new JLabel(infoD3);
-		infD4 = new JLabel(infoD4);
-		infD5 = new JLabel(infoD5);
+		infD0 = new JLabel("£¹cznie");
+		infD1 = new JLabel("Zwyciêstwa   "+wins[3]);
+		infD2 = new JLabel("Przegrane    "+loses[3]);
+		infD3 = new JLabel("Remisy       "+draws[3]);
+		infD4 = new JLabel("£¹cznie      "+games[3]);
+		infD5 = new JLabel("% zwyciêstw  "+df.format(winRatio[3]));
 		statsAll.add(infD0);
 		statsAll.add(infD1);
 		statsAll.add(infD2);
@@ -314,19 +356,24 @@ public class Poker extends JFrame {
 		statsAll.add(infD4);
 		statsAll.add(infD5);
 		
-		//listenery
-		lvl1.addActionListener(new ActionListener() { //--------------------rozpoczecie gry (³atwy)
+		//klasa do grania na 3 poziomach trudnoœci
+		class RozrywkaZagniezdzona  implements Runnable {
+			int difficulty;
+			
+			public RozrywkaZagniezdzona(int d) {
+				difficulty = d;
+			}
+				
 			@Override
-			public void actionPerformed(ActionEvent e) {
+			public void run() {
+				
+				JFrame okno = new JFrame();
+				okno.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+				okno.setSize(600,400);
+				okno.setVisible(true);
+				
 				StartTheDraw s1 = new StartTheDraw(); //start the draw
 				s1.run();
-				
-				//System.out.println("Rêka bot przed:");
-				//for(int i=0;i<5;i++)
-					//System.out.println(s1.handBot.colour[i]+" "+s1.handBot.number[i]);
-				//System.out.println("Rêka user przed:");
-				//for(int i=0;i<5;i++)
-					//System.out.println(s1.handPlayer.colour[i]+" "+s1.handPlayer.number[i]);
 				
 				koloryWy = "";
 				figuryWy = "";
@@ -339,22 +386,14 @@ public class Poker extends JFrame {
 				for(int i = 0; i < 5; i++) //6-10: figury gracz startowa 
 					figuryWy += String.valueOf(s1.handPlayer.number[i]) + " ";
 			
-				StartTheSwap s2 = new StartTheSwap(1,s1.handBot); //komputer odrzuca karty
+				StartTheSwap s2 = new StartTheSwap(difficulty, s1.handBot); //komputer odrzuca karty w zale¿noœci od trudnoœci
 				s2.run();
 
-				//System.out.println("Odrzucone komp: ");
 				for(int i=0;i<5;i++)
-				{
-					//System.out.println(s2.change[i]);
 					odrz += s2.change[i];
-				}
-				
-				JFrame latwa = new JFrame();
-				latwa.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-				latwa.setSize(600,400);
-				latwa.setVisible(true);
+
 		        panelGry = new JPanel();
-		        latwa.add(panelGry);
+		        okno.add(panelGry);
 		        panelGry.setLayout(new BorderLayout());
 		        up = new JPanel();
 		        mid = new JPanel();
@@ -364,17 +403,28 @@ public class Poker extends JFrame {
 				panelGry.add(down, BorderLayout.SOUTH);
 				mid.setLayout(new GridLayout(2,5));
 				        
-		        //jêzyk polski
-				latwa.setTitle("Poker | Rozgrywka");
-		        przeOdrz = new JLabel("Przeciwnik odrzuci³ " + odrz); 
-		        if(odrz==0 || odrz==5) //poprawnoœæ jêzykowa
-		        	przeOdrz.setText(przeOdrz.getText()+" kart.");
-		        if(odrz==1)
-		        	przeOdrz.setText(przeOdrz.getText()+" kartê.");
-		        if(odrz==2 || odrz==3 || odrz==4)
-		        	przeOdrz.setText(przeOdrz.getText()+" karty.");
-		        odrzuc = new JButton("Odrzuæ karty");
+		        if(jezyk==0) {
+		        	okno.setTitle("Poker | Rozgrywka");
+			        przeOdrz = new JLabel("Przeciwnik odrzuci³ " + odrz); 
+			        if(odrz==0 || odrz==5) //poprawnoœæ jêzykowa
+			        	przeOdrz.setText(przeOdrz.getText()+" kart.");
+			        if(odrz==1)
+			        	przeOdrz.setText(przeOdrz.getText()+" kartê.");
+			        if(odrz==2 || odrz==3 || odrz==4)
+			        	przeOdrz.setText(przeOdrz.getText()+" karty.");
+			        odrzuc = new JButton("Odrzuæ karty");
+		        }
 		        
+		        if(jezyk==1) {
+		        	okno.setTitle("Poker | Play");
+			        przeOdrz = new JLabel("Opponent thrown " + odrz); 	
+			        if(odrz==1)
+			        	przeOdrz.setText(przeOdrz.getText()+" card.");
+			        else
+			        	przeOdrz.setText(przeOdrz.getText()+" cards.");
+			        odrzuc = new JButton("Throw cards");
+		        }
+				
 		        //grafiki kart przy wymienianiu
 		        for(int i=0; i<5; i++) {
 		        	switch(s1.handPlayer.colour[i]) {
@@ -478,8 +528,6 @@ public class Poker extends JFrame {
 		        	
 		        }
 		        
-		        
-		        
 		        odrzKarta1 = new JCheckBox();
 		        odrzKarta2 = new JCheckBox();
 		        odrzKarta3 = new JCheckBox();
@@ -493,10 +541,12 @@ public class Poker extends JFrame {
 		        
 		        down.add(odrzuc);
 		        up.add(przeOdrz);
+		        panelGry.revalidate();
+		        panelGry.repaint();
 
 		        odrz = 0;
 		       
-		        //listenery
+		        //listener
 		        odrzuc.addActionListener(new ActionListener() { //zakoñczenie rozgrywki
 		  			@Override
 		  			public void actionPerformed(ActionEvent e) {
@@ -521,10 +571,6 @@ public class Poker extends JFrame {
 	  						changePlayer[4]=1;
 	  					else
 	  						changePlayer[4]=0;
-
-		  				//System.out.println("Odrzucone user: ");
-		  				//for(int i=0;i<5;i++)
-							//System.out.println(changePlayer[i]);
 		  				
 		  				StartTheScore s3 = new StartTheScore(s1.handPlayer, s1.handBot, changePlayer, s2.change);
 		  				s3.run();
@@ -550,666 +596,181 @@ public class Poker extends JFrame {
 						tekstWy += String.valueOf(ukl2) + " "; //42: typ uk³adu gracz koñcowa
 						tekstWy += String.valueOf(wynik)+ " "; //43: kto wygra³
 						
-		  				Rozgrywka r2 = new Rozgrywka(tekstWy, "brak"); //okienko z rezultatem rozgrywki
+		  				Rozgrywka r2 = new Rozgrywka(tekstWy, "brak", jezyk, awers); //okienko z rezultatem rozgrywki
 		  				
-		  				//System.out.println("SCORE: "+s1.handPlayer.Score());
 		  				switch(s3.score) {
 			  				case 1:
-			  					money += 10;
+			  					money += difficulty*(10+streak*difficulty); //easy 10+s; normal 20+4s; hard 30+9s; exp 40+16s;   s=streak
 			  					winsS++;
-			  					System.out.println("Koniec rozgrywki - wygrana\n");
-			  					wins[0]++;
+			  					System.out.println("Koniec rozgrywki - wygrana " + difficulty*(10+streak*difficulty) + " monet");
+			  					streak++;
+			  					System.out.println("Wygrywasz " + streak + " grê z rzêdu!");
+			  					if(difficulty==4)
+			  						wins[difficulty-2]++; //eksperymentalny i trudny - wspólna statystyka
+			  					else
+			  						wins[difficulty-1]++;
 			  					break;
 			  				case 0:
-			  					money -= 10;
+			  					streak = 0;
+			  					money -= difficulty*10;
 			  					losesS++;
-			  					System.out.println("Koniec rozgrywki - przegrana\n");
-			  					loses[0]++;
+			  					System.out.println("Koniec rozgrywki - przegrana " + difficulty*10 + " monet");
+			  					if(difficulty==4)
+			  						loses[difficulty-2]++;
+			  					else
+			  						loses[difficulty-1]++;
 			  					break;
 			  				case 2:
+			  					streak = 0;
 			  					drawsS++;
 			  					System.out.println("Koniec rozgrywki - remis\n");
-			  					draws[0]++;
+			  					if(difficulty==4)
+			  						draws[difficulty-2]++;
+			  					else
+			  						draws[difficulty-1]++;
 			  					break;
 		  				}
+		  				
+		  				memory[10] = memory[0];
+		  				for(int i=1; i<10; i++)
+		  					memory[10] += memory[i];
+		  				
 		  				gamesS = winsS+losesS+drawsS;
-		  				memory[10] = gamesS;
 		  				moneyCount.setText(String.format("%d", money));
 		  				winsSession.setText(String.format("%d", winsS));
 		  				losesSession.setText(String.format("%d", losesS));
 		  				drawsSession.setText(String.format("%d", drawsS));
 		  				winRatioS = (double) 100*winsS/gamesS;
 		  				winRatioSession.setText(winRatioS + "%");
-		  				String infoS1 = "Brak uk³adu "+memory[1];
-		  				String infoS2 = "Para        "+memory[2];
-		  				String infoS3 = "2 Pary      "+memory[3];
-		  				String infoS4 = "Trójka      "+memory[4];
-		  				String infoS5 = "Streat      "+memory[5];
-		  				String infoS6 = "Full        "+memory[6];
-		  				String infoS7 = "Kolor       "+memory[7];
-		  				String infoS8 = "Kareta      "+memory[8];
-		  				String infoS9 = "Poker       "+memory[9];
-		  				String infoS10= "£¹cznie     "+memory[10];
-		  				infS1.setText(infoS1);
-		  				infS2.setText(infoS2);
-		  				infS3.setText(infoS3);
-		  				infS4.setText(infoS4);
-		  				infS5.setText(infoS5);
-		  				infS6.setText(infoS6);
-		  				infS7.setText(infoS7);
-		  				infS8.setText(infoS8);
-		  				infS9.setText(infoS9);
-		  				infS10.setText(infoS10);
-		  				latwa.setVisible(false);
-		  				if(money<=0) {
+		  				
+		  				wins[3] = wins[0]+wins[1]+wins[2];
+		  				loses[3] = loses[0]+loses[1]+loses[2];
+		  				draws[3] = draws[0]+draws[1]+draws[2];
+		  				for(int i=0; i<4; i++) {
+		  					games[i] = wins[i]+loses[i]+draws[i];
+		  					winRatio[i] = (double) 100*wins[i]/games[i];
+		  				}
+		  		
+		  				
+		  				infS1.setText("Brak uk³adu "+memory[1]);
+		  				infS2.setText("Para        "+memory[2]);
+		  				infS3.setText("2 Pary      "+memory[3]);
+		  				infS4.setText("Trójka      "+memory[4]);
+		  				infS5.setText("Streat      "+memory[5]);
+		  				infS6.setText("Full        "+memory[6]);
+		  				infS7.setText("Kolor       "+memory[7]);
+		  				infS8.setText("Kareta      "+memory[8]);
+		  				infS9.setText("Poker       "+memory[9]);
+		  				infS10.setText("£¹cznie     "+memory[10]);
+		  				infD0.setText("£¹cznie");
+		  				infD1.setText("Zwyciêstwa   "+wins[3]);
+		  				infD2.setText("Przegrane    "+loses[3]);
+		  				infD3.setText("Remisy       "+draws[3]);
+		  				infD4.setText("£¹cznie      "+games[3]);
+		  				infD5.setText("% zwyciêstw  "+df.format(winRatio[3]));
+		  				infA0.setText("Poziom: ³atwy");
+		  				infA1.setText("Zwyciêstwa   "+wins[0]);
+		  				infA2.setText("Przegrane    "+loses[0]);
+		  				infA3.setText("Remisy       "+draws[0]);
+		  				infA4.setText("£¹cznie      "+games[0]);
+		  				infA5.setText("% zwyciêstw  "+df.format(winRatio[0]));
+		  				infB0.setText("Poziom: œredni");
+		  				infB1.setText("Zwyciêstwa   "+wins[1]);
+		  				infB2.setText("Przegrane    "+loses[1]);
+		  				infB3.setText("Remisy       "+draws[1]);
+		  				infB4.setText("£¹cznie      "+games[1]);
+		  				infB5.setText("% zwyciêstw  "+df.format(winRatio[1]));
+		  				infC0.setText("Poziom: trudny");
+		  				infC1.setText("Zwyciêstwa   "+wins[2]);
+		  				infC2.setText("Przegrane    "+loses[2]);
+		  				infC3.setText("Remisy       "+draws[2]);
+		  				infC4.setText("£¹cznie      "+games[2]);
+		  				infC5.setText("% zwyciêstw  "+df.format(winRatio[2]));
+		  				
+		  				okno.setVisible(false);
+		  				
+						String tekstWyj = "";
+						tekstWyj += money + " ";
+						for(int i=0; i<4; i++) {
+							tekstWyj += wins[i] + " ";
+							tekstWyj += loses[i] + " ";
+							tekstWyj += draws[i] + " ";
+		  				}
+		  				for(int i=0; i<11; i++) {
+		  					tekstWyj += memory[i] + " ";
+		  				}
+		  				tekstWyj += streak + " ";
+		  				tekstWyj += awers;
+		  				
+						FileWriter plikWyj;
+						try {
+							plikWyj = new FileWriter(fileTemp);
+							plikWyj.write(tekstWyj);
+							plikWyj.close();
+						} catch (IOException e1) {
+							e1.printStackTrace();
+						}
+						
+		  				if(money<0) {
 		  					System.out.println("Nie masz pieniêdzy! Przegra³eœ!");
+		  					FileWriter plikWyjs;
+		  					try {
+		  						plikWyjs = new FileWriter(fileTemp);
+		  						plikWyjs.write("100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0");
+		  						plikWyjs.close();
+		  					} catch (IOException e1) {
+		  						e1.printStackTrace();
+		  					}
 		  					System.exit(0);
 		  				}
 		  					
 		  			}
 		  		});		
+			}	
+		}
+
+		//listenery
+		lvl1.addActionListener(new ActionListener() { //--------------------rozpoczecie gry (³atwy)
+			@Override
+			public void actionPerformed(ActionEvent e){
+				
+				ExecutorService exec = Executors.newFixedThreadPool(2);
+				RozrywkaZagniezdzona bolek = new RozrywkaZagniezdzona(1);
+				exec.execute(bolek);
+				
 			}	
 		});	
 		
 		lvl2.addActionListener(new ActionListener() { //--------------------rozpoczecie gry (œredni)
 			@Override
-			public void actionPerformed(ActionEvent e) {
-				StartTheDraw s1 = new StartTheDraw(); //start the draw
-				s1.run();
+			public void actionPerformed(ActionEvent e){
 				
-				//System.out.println("Rêka bot przed:");
-				//for(int i=0;i<5;i++)
-					//System.out.println(s1.handBot.colour[i]+" "+s1.handBot.number[i]);
-				//System.out.println("Rêka user przed:");
-				//for(int i=0;i<5;i++)
-					//System.out.println(s1.handPlayer.colour[i]+" "+s1.handPlayer.number[i]);
+				ExecutorService exec = Executors.newFixedThreadPool(2);
+				RozrywkaZagniezdzona bolek = new RozrywkaZagniezdzona(2);
+				exec.execute(bolek);
 				
-				koloryWy = "";
-				figuryWy = "";
-				for(int i = 0; i < 5; i++) //1-5: kolory komp startowa
-					koloryWy += String.valueOf(s1.handBot.colour[i]) + " ";
-				for(int i = 0; i < 5; i++) //6-10: kolory gracz startowa
-					koloryWy += String.valueOf(s1.handPlayer.colour[i]) + " ";
-				for(int i = 0; i < 5; i++) //1-5: figury komp startowa 
-					figuryWy += String.valueOf(s1.handBot.number[i]) + " ";
-				for(int i = 0; i < 5; i++) //6-10: figury gracz startowa 
-					figuryWy += String.valueOf(s1.handPlayer.number[i]) + " ";
-			
-				StartTheSwap s2 = new StartTheSwap(2,s1.handBot); //komputer odrzuca karty
-				s2.run();
+			}	
+		});	
 
-				//System.out.println("Odrzucone komp: ");
-				for(int i=0;i<5;i++)
-				{
-					//System.out.println(s2.change[i]);
-					odrz += s2.change[i];
-				}
+		lvl3.addActionListener(new ActionListener() { //--------------------rozpoczecie gry (trudny)
+			@Override
+			public void actionPerformed(ActionEvent e){
 				
-				JFrame srednia = new JFrame();
-				srednia.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-				srednia.setSize(600,400);
-				srednia.setVisible(true);
+				ExecutorService exec = Executors.newFixedThreadPool(2);
+				RozrywkaZagniezdzona bolek = new RozrywkaZagniezdzona(3);
+				exec.execute(bolek);
 				
-
-				
-		        panelGry = new JPanel();
-		        srednia.add(panelGry);
-		        panelGry.setLayout(new BorderLayout());
-		        up = new JPanel();
-		        mid = new JPanel();
-		        down = new JPanel();
-		        panelGry.add(up, BorderLayout.NORTH);
-				panelGry.add(mid, BorderLayout.CENTER);
-				panelGry.add(down, BorderLayout.SOUTH);
-				mid.setLayout(new GridLayout(2,5));
-				        
-		        //jêzyk polski
-				srednia.setTitle("Poker | Rozgrywka");
-		        przeOdrz = new JLabel("Przeciwnik odrzuci³ " + odrz); 
-		        if(odrz==0 || odrz==5) //poprawnoœæ jêzykowa
-		        	przeOdrz.setText(przeOdrz.getText()+" kart.");
-		        if(odrz==1)
-		        	przeOdrz.setText(przeOdrz.getText()+" kartê.");
-		        if(odrz==2 || odrz==3 || odrz==4)
-		        	przeOdrz.setText(przeOdrz.getText()+" karty.");
-		        odrzuc = new JButton("Odrzuæ karty");
-		        
-		        //grafiki kart przy wymienianiu
-		        for(int i=0; i<5; i++) {
-		        	switch(s1.handPlayer.colour[i]) {
-			        	case 0:
-			        	{
-			        		switch(s1.handPlayer.number[i]) {
-					        	case 9:
-					        		mid.add(pikk9);	
-					        		break;	
-					        	case 10:
-					        		mid.add(pikk10);	
-					        		break;	
-					        	case 11:
-					        		mid.add(pikkW);	
-					        		break;	
-					        	case 12:
-					        		mid.add(pikkQ);	
-					        		break;	
-					        	case 13:
-					        		mid.add(pikkK);	
-					        		break;	
-					        	case 14:
-					        		mid.add(pikkA);	
-					        		break;	
-			        		}
-			        		break;
-			        	}
-			        	case 1:
-			        	{
-			        		switch(s1.handPlayer.number[i]) {
-					        	case 9:
-					        		mid.add(kierr9);	
-					        		break;	
-					        	case 10:
-					        		mid.add(kierr10);	
-					        		break;	
-					        	case 11:
-					        		mid.add(kierrW);	
-					        		break;	
-					        	case 12:
-					        		mid.add(kierrQ);	
-					        		break;	
-					        	case 13:
-					        		mid.add(kierrK);	
-					        		break;	
-					        	case 14:
-					        		mid.add(kierrA);	
-					        		break;	
-			        		}
-			        		break;
-			        	}
-			        	case 2:
-			        	{
-			        		switch(s1.handPlayer.number[i]) {
-					        	case 9:
-					        		mid.add(karoo9);	
-					        		break;	
-					        	case 10:
-					        		mid.add(karoo10);	
-					        		break;	
-					        	case 11:
-					        		mid.add(karooW);	
-					        		break;	
-					        	case 12:
-					        		mid.add(karooQ);	
-					        		break;	
-					        	case 13:
-					        		mid.add(karooK);	
-					        		break;	
-					        	case 14:
-					        		mid.add(karooA);	
-					        		break;	
-			        		}
-			        		break;
-			        	}
-			        	case 3:
-			        	{
-			        		switch(s1.handPlayer.number[i]) {
-					        	case 9:
-					        		mid.add(trefll9);	
-					        		break;	
-					        	case 10:
-					        		mid.add(trefll10);	
-					        		break;	
-					        	case 11:
-					        		mid.add(trefllW);	
-					        		break;	
-					        	case 12:
-					        		mid.add(trefllQ);	
-					        		break;	
-					        	case 13:
-					        		mid.add(trefllK);	
-					        		break;	
-					        	case 14:
-					        		mid.add(trefllA);	
-					        		break;	
-			        		}
-			        		break;
-			        	}
-		        	}
-		        	
-		        }
-		        
-		        
-		        
-		        odrzKarta1 = new JCheckBox();
-		        odrzKarta2 = new JCheckBox();
-		        odrzKarta3 = new JCheckBox();
-		        odrzKarta4 = new JCheckBox();
-		        odrzKarta5 = new JCheckBox();
-		        mid.add(odrzKarta1);
-		        mid.add(odrzKarta2);
-		        mid.add(odrzKarta3);
-		        mid.add(odrzKarta4);
-		        mid.add(odrzKarta5);
-		        
-		        down.add(odrzuc);
-		        up.add(przeOdrz);
-
-		        odrz = 0;
-		       
-		        //listenery
-		        odrzuc.addActionListener(new ActionListener() { //zakoñczenie rozgrywki
-		  			@Override
-		  			public void actionPerformed(ActionEvent e) {
-		  				int[] changePlayer = new int[5];
-		  				if(odrzKarta1.isSelected())
-	  						changePlayer[0]=1;
-	  					else
-	  						changePlayer[0]=0;
-		  				if(odrzKarta2.isSelected())
-	  						changePlayer[1]=1;
-	  					else
-	  						changePlayer[1]=0;
-		  				if(odrzKarta3.isSelected())
-	  						changePlayer[2]=1;
-	  					else
-	  						changePlayer[2]=0;
-		  				if(odrzKarta4.isSelected())
-	  						changePlayer[3]=1;
-	  					else
-	  						changePlayer[3]=0;
-		  				if(odrzKarta5.isSelected())
-	  						changePlayer[4]=1;
-	  					else
-	  						changePlayer[4]=0;
-
-		  				//System.out.println("Odrzucone user: ");
-		  				//for(int i=0;i<5;i++)
-							//System.out.println(changePlayer[i]);
-		  				
-		  				StartTheScore s3 = new StartTheScore(s1.handPlayer, s1.handBot, changePlayer, s2.change);
-		  				s3.run();
-		  				
-		  				for(int i = 0; i < 5; i++) //11-15: kolory komp koñcowa
-							koloryWy += String.valueOf(s1.handBot.colour[i]) + " ";
-						for(int i = 0; i < 5; i++) //11-15: figury komp koñcowa
-							figuryWy += String.valueOf(s1.handBot.number[i]) + " ";
-						for(int i = 0; i < 5; i++) //16-20: kolory gracz koñcowa
-							koloryWy += String.valueOf(s1.handPlayer.colour[i]) + " ";
-						for(int i = 0; i < 5; i++) //16-20: figury gracz koñcowa
-							figuryWy += String.valueOf(s1.handPlayer.number[i]) + " ";
-						
-		  				memory[s1.handPlayer.Score()]++; //dodanie uk³adu do stats
-		  				ukl1 = s1.handBot.Score();
-		  				ukl2 = s1.handPlayer.Score();
-		  				wynik = s3.score;
-		  				
-		  				tekstWy = "";
-						tekstWy += koloryWy; //1-20
-						tekstWy += figuryWy; //21-40
-						tekstWy += String.valueOf(ukl1) + " "; //41: typ uk³adu komp koñcowa
-						tekstWy += String.valueOf(ukl2) + " "; //42: typ uk³adu gracz koñcowa
-						tekstWy += String.valueOf(wynik)+ " "; //43: kto wygra³
-						
-		  				Rozgrywka r2 = new Rozgrywka(tekstWy, "brak"); //okienko z rezultatem rozgrywki
-		  				
-		  				//System.out.println("SCORE: "+s1.handPlayer.Score());
-		  				switch(s3.score) {
-			  				case 1:
-			  					money += 20;
-			  					winsS++;
-			  					System.out.println("Koniec rozgrywki - wygrana\n");
-			  					wins[0]++;
-			  					break;
-			  				case 0:
-			  					money -= 20;
-			  					losesS++;
-			  					System.out.println("Koniec rozgrywki - przegrana\n");
-			  					loses[0]++;
-			  					break;
-			  				case 2:
-			  					drawsS++;
-			  					System.out.println("Koniec rozgrywki - remis\n");
-			  					draws[0]++;
-			  					break;
-		  				}
-		  				gamesS = winsS+losesS+drawsS;
-		  				memory[10] = gamesS;
-		  				moneyCount.setText(String.format("%d", money));
-		  				winsSession.setText(String.format("%d", winsS));
-		  				losesSession.setText(String.format("%d", losesS));
-		  				drawsSession.setText(String.format("%d", drawsS));
-		  				winRatioS = (double) 100*winsS/gamesS;
-		  				winRatioSession.setText(winRatioS + "%");
-		  				String infoS1 = "Brak uk³adu "+memory[1];
-		  				String infoS2 = "Para        "+memory[2];
-		  				String infoS3 = "2 Pary      "+memory[3];
-		  				String infoS4 = "Trójka      "+memory[4];
-		  				String infoS5 = "Streat      "+memory[5];
-		  				String infoS6 = "Full        "+memory[6];
-		  				String infoS7 = "Kolor       "+memory[7];
-		  				String infoS8 = "Kareta      "+memory[8];
-		  				String infoS9 = "Poker       "+memory[9];
-		  				String infoS10= "£¹cznie     "+memory[10];
-		  				infS1.setText(infoS1);
-		  				infS2.setText(infoS2);
-		  				infS3.setText(infoS3);
-		  				infS4.setText(infoS4);
-		  				infS5.setText(infoS5);
-		  				infS6.setText(infoS6);
-		  				infS7.setText(infoS7);
-		  				infS8.setText(infoS8);
-		  				infS9.setText(infoS9);
-		  				infS10.setText(infoS10);
-		  				srednia.setVisible(false);
-		  				if(money<=0) {
-		  					System.out.println("Nie masz pieniêdzy! Przegra³eœ!");
-		  					System.exit(0);
-		  				}
-		  					
-		  			}
-		  		});		
 			}	
 		});	
 		
-		lvl3.addActionListener(new ActionListener() { //--------------------rozpoczecie gry (trudny)
+		lvl4.addActionListener(new ActionListener() { //--------------------rozpoczecie gry (eksperymentalny)
 			@Override
-			public void actionPerformed(ActionEvent e) {
-				StartTheDraw s1 = new StartTheDraw(); //start the draw
-				s1.run();
+			public void actionPerformed(ActionEvent e){
 				
-				//System.out.println("Rêka bot przed:");
-				//for(int i=0;i<5;i++)
-					//System.out.println(s1.handBot.colour[i]+" "+s1.handBot.number[i]);
-				//System.out.println("Rêka user przed:");
-				//for(int i=0;i<5;i++)
-					//System.out.println(s1.handPlayer.colour[i]+" "+s1.handPlayer.number[i]);
+				ExecutorService exec = Executors.newFixedThreadPool(2);
+				RozrywkaZagniezdzona bolek = new RozrywkaZagniezdzona(4);
+				exec.execute(bolek);
 				
-				koloryWy = "";
-				figuryWy = "";
-				for(int i = 0; i < 5; i++) //1-5: kolory komp startowa
-					koloryWy += String.valueOf(s1.handBot.colour[i]) + " ";
-				for(int i = 0; i < 5; i++) //6-10: kolory gracz startowa
-					koloryWy += String.valueOf(s1.handPlayer.colour[i]) + " ";
-				for(int i = 0; i < 5; i++) //1-5: figury komp startowa 
-					figuryWy += String.valueOf(s1.handBot.number[i]) + " ";
-				for(int i = 0; i < 5; i++) //6-10: figury gracz startowa 
-					figuryWy += String.valueOf(s1.handPlayer.number[i]) + " ";
-			
-				
-				
-				JFrame trudna = new JFrame();
-				trudna.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-				trudna.setSize(600,400);
-				trudna.setVisible(true);
-				
-				StartTheSwap s2 = new StartTheSwap(3,s1.handBot); //komputer odrzuca karty
-					s2.run();
-				
-		        panelGry = new JPanel();
-		        trudna.add(panelGry);
-		        panelGry.setLayout(new BorderLayout());
-		        up = new JPanel();
-		        mid = new JPanel();
-		        down = new JPanel();
-		        panelGry.add(up, BorderLayout.NORTH);
-				panelGry.add(mid, BorderLayout.CENTER);
-				panelGry.add(down, BorderLayout.SOUTH);
-				mid.setLayout(new GridLayout(2,5));
-				        
-		        //jêzyk polski
-				trudna.setTitle("Poker | Rozgrywka");
-				przeOdrz = new JLabel("Przeciwnik odrzuci³ " + odrz); 
-		        if(odrz==0 || odrz==5) //poprawnoœæ jêzykowa
-		        	przeOdrz.setText(przeOdrz.getText()+" kart.");
-		        if(odrz==1)
-		        	przeOdrz.setText(przeOdrz.getText()+" kartê.");
-		        if(odrz==2 || odrz==3 || odrz==4)
-		        	przeOdrz.setText(przeOdrz.getText()+" karty.");
-		        odrzuc = new JButton("Odrzuæ karty"); 
-		        
-		        //grafiki kart przy wymienianiu
-		        for(int i=0; i<5; i++) {
-		        	switch(s1.handPlayer.colour[i]) {
-			        	case 0:
-			        	{
-			        		switch(s1.handPlayer.number[i]) {
-					        	case 9:
-					        		mid.add(pikk9);	
-					        		break;	
-					        	case 10:
-					        		mid.add(pikk10);	
-					        		break;	
-					        	case 11:
-					        		mid.add(pikkW);	
-					        		break;	
-					        	case 12:
-					        		mid.add(pikkQ);	
-					        		break;	
-					        	case 13:
-					        		mid.add(pikkK);	
-					        		break;	
-					        	case 14:
-					        		mid.add(pikkA);	
-					        		break;	
-			        		}
-			        		break;
-			        	}
-			        	case 1:
-			        	{
-			        		switch(s1.handPlayer.number[i]) {
-					        	case 9:
-					        		mid.add(kierr9);	
-					        		break;	
-					        	case 10:
-					        		mid.add(kierr10);	
-					        		break;	
-					        	case 11:
-					        		mid.add(kierrW);	
-					        		break;	
-					        	case 12:
-					        		mid.add(kierrQ);	
-					        		break;	
-					        	case 13:
-					        		mid.add(kierrK);	
-					        		break;	
-					        	case 14:
-					        		mid.add(kierrA);	
-					        		break;	
-			        		}
-			        		break;
-			        	}
-			        	case 2:
-			        	{
-			        		switch(s1.handPlayer.number[i]) {
-					        	case 9:
-					        		mid.add(karoo9);	
-					        		break;	
-					        	case 10:
-					        		mid.add(karoo10);	
-					        		break;	
-					        	case 11:
-					        		mid.add(karooW);	
-					        		break;	
-					        	case 12:
-					        		mid.add(karooQ);	
-					        		break;	
-					        	case 13:
-					        		mid.add(karooK);	
-					        		break;	
-					        	case 14:
-					        		mid.add(karooA);	
-					        		break;	
-			        		}
-			        		break;
-			        	}
-			        	case 3:
-			        	{
-			        		switch(s1.handPlayer.number[i]) {
-					        	case 9:
-					        		mid.add(trefll9);	
-					        		break;	
-					        	case 10:
-					        		mid.add(trefll10);	
-					        		break;	
-					        	case 11:
-					        		mid.add(trefllW);	
-					        		break;	
-					        	case 12:
-					        		mid.add(trefllQ);	
-					        		break;	
-					        	case 13:
-					        		mid.add(trefllK);	
-					        		break;	
-					        	case 14:
-					        		mid.add(trefllA);	
-					        		break;	
-			        		}
-			        		break;
-			        	}
-		        	}
-		        	
-		        }
-		        
-		        
-		        
-		        odrzKarta1 = new JCheckBox();
-		        odrzKarta2 = new JCheckBox();
-		        odrzKarta3 = new JCheckBox();
-		        odrzKarta4 = new JCheckBox();
-		        odrzKarta5 = new JCheckBox();
-		        mid.add(odrzKarta1);
-		        mid.add(odrzKarta2);
-		        mid.add(odrzKarta3);
-		        mid.add(odrzKarta4);
-		        mid.add(odrzKarta5);
-		        
-		        down.add(odrzuc);
-		        up.add(przeOdrz);
-		        
-		       
-
-				//System.out.println("Odrzucone komp: ");
-				for(int i=0;i<5;i++)
-				{
-					//System.out.println(s2.change[i]);
-					odrz += s2.change[i];
-				}
-				
-				
-				
-		        odrz = 0;
-		       
-		        //listenery
-		        odrzuc.addActionListener(new ActionListener() { //zakoñczenie rozgrywki
-		  			@Override
-		  			public void actionPerformed(ActionEvent e) {
-		  				int[] changePlayer = new int[5];
-		  				if(odrzKarta1.isSelected())
-	  						changePlayer[0]=1;
-	  					else
-	  						changePlayer[0]=0;
-		  				if(odrzKarta2.isSelected())
-	  						changePlayer[1]=1;
-	  					else
-	  						changePlayer[1]=0;
-		  				if(odrzKarta3.isSelected())
-	  						changePlayer[2]=1;
-	  					else
-	  						changePlayer[2]=0;
-		  				if(odrzKarta4.isSelected())
-	  						changePlayer[3]=1;
-	  					else
-	  						changePlayer[3]=0;
-		  				if(odrzKarta5.isSelected())
-	  						changePlayer[4]=1;
-	  					else
-	  						changePlayer[4]=0;
-
-		  				//System.out.println("Odrzucone user: ");
-		  				//for(int i=0;i<5;i++)
-							//System.out.println(changePlayer[i]);
-		  				
-		  				StartTheScore s3 = new StartTheScore(s1.handPlayer, s1.handBot, changePlayer, s2.change);
-		  				s3.run();
-		  				
-		  				for(int i = 0; i < 5; i++) //11-15: kolory komp koñcowa
-							koloryWy += String.valueOf(s1.handBot.colour[i]) + " ";
-						for(int i = 0; i < 5; i++) //11-15: figury komp koñcowa
-							figuryWy += String.valueOf(s1.handBot.number[i]) + " ";
-						for(int i = 0; i < 5; i++) //16-20: kolory gracz koñcowa
-							koloryWy += String.valueOf(s1.handPlayer.colour[i]) + " ";
-						for(int i = 0; i < 5; i++) //16-20: figury gracz koñcowa
-							figuryWy += String.valueOf(s1.handPlayer.number[i]) + " ";
-						
-		  				memory[s1.handPlayer.Score()]++; //dodanie uk³adu do stats
-		  				ukl1 = s1.handBot.Score();
-		  				ukl2 = s1.handPlayer.Score();
-		  				wynik = s3.score;
-		  				
-		  				tekstWy = "";
-						tekstWy += koloryWy; //1-20
-						tekstWy += figuryWy; //21-40
-						tekstWy += String.valueOf(ukl1) + " "; //41: typ uk³adu komp koñcowa
-						tekstWy += String.valueOf(ukl2) + " "; //42: typ uk³adu gracz koñcowa
-						tekstWy += String.valueOf(wynik)+ " "; //43: kto wygra³
-						
-		  				Rozgrywka r2 = new Rozgrywka(tekstWy, "brak"); //okienko z rezultatem rozgrywki
-		  				
-		  				//System.out.println("SCORE: "+s1.handPlayer.Score());
-		  				switch(s3.score) {
-			  				case 1:
-			  					money += 10;
-			  					winsS++;
-			  					System.out.println("Koniec rozgrywki - wygrana\n");
-			  					wins[0]++;
-			  					break;
-			  				case 0:
-			  					money -= 10;
-			  					losesS++;
-			  					System.out.println("Koniec rozgrywki - przegrana\n");
-			  					loses[0]++;
-			  					break;
-			  				case 2:
-			  					drawsS++;
-			  					System.out.println("Koniec rozgrywki - remis\n");
-			  					draws[0]++;
-			  					break;
-		  				}
-		  				gamesS = winsS+losesS+drawsS;
-		  				memory[10] = gamesS;
-		  				moneyCount.setText(String.format("%d", money));
-		  				winsSession.setText(String.format("%d", winsS));
-		  				losesSession.setText(String.format("%d", losesS));
-		  				drawsSession.setText(String.format("%d", drawsS));
-		  				winRatioS = (double) 100*winsS/gamesS;
-		  				winRatioSession.setText(winRatioS + "%");
-		  				String infoS1 = "Brak uk³adu "+memory[1];
-		  				String infoS2 = "Para        "+memory[2];
-		  				String infoS3 = "2 Pary      "+memory[3];
-		  				String infoS4 = "Trójka      "+memory[4];
-		  				String infoS5 = "Streat      "+memory[5];
-		  				String infoS6 = "Full        "+memory[6];
-		  				String infoS7 = "Kolor       "+memory[7];
-		  				String infoS8 = "Kareta      "+memory[8];
-		  				String infoS9 = "Poker       "+memory[9];
-		  				String infoS10= "£¹cznie     "+memory[10];
-		  				infS1.setText(infoS1);
-		  				infS2.setText(infoS2);
-		  				infS3.setText(infoS3);
-		  				infS4.setText(infoS4);
-		  				infS5.setText(infoS5);
-		  				infS6.setText(infoS6);
-		  				infS7.setText(infoS7);
-		  				infS8.setText(infoS8);
-		  				infS9.setText(infoS9);
-		  				infS10.setText(infoS10);
-		  				trudna.setVisible(false);
-		  				if(money<=0) {
-		  					System.out.println("Nie masz pieniêdzy! Przegra³eœ!");
-		  					System.exit(0);
-		  				}
-		  					
-		  			}
-		  		});		
 			}	
 		});	
 		
@@ -1240,20 +801,61 @@ public class Poker extends JFrame {
 					String fileName = chooserW.getSelectedFile().getAbsolutePath();
 					JTextField tekstWe = new JTextField();
 					tekstWe.read(new FileReader(chooserW.getSelectedFile().getAbsolutePath()), null);
-					//System.out.println(tekstWe.getText());
-					//System.out.println(fileName);
-					Rozgrywka r1 = new Rozgrywka(tekstWe.getText(), fileName);
+					Rozgrywka r1 = new Rozgrywka(tekstWe.getText(), fileName, jezyk, awers);
 					
 				} catch(IOException ex) {}
 			}
 		});
 		
-		mute.addActionListener(new ActionListener() { //mute
+		sklep.addActionListener(new ActionListener() { //kup rewers
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				regulacjaGlosnosci.setValue(0);
+				
+				if(awers==1)
+					System.out.println("Masz ju¿ awers!");
+				else if(money<150)
+					System.out.println("Nie masz wymaganych 150 monet!");
+				else {
+					System.out.println("Zakupiono!");
+					awers = 1;
+					money -= 150;
+					moneyCount.setText(String.format("%d", money));
+					
+					pikk9 = robKarte2(pik9,"pik9"); 	pikk10 = robKarte2(pik10,"pik10"); 		pikkW = robKarte2(pikW,"pikW"); 
+					pikkQ = robKarte2(pikQ,"pikQ"); 	pikkK = robKarte2(pikK,"pikK"); 		pikkA = robKarte2(pikA,"pikA"); 
+					kierr9 = robKarte2(kier9,"kier9"); 	kierr10 = robKarte2(kier10,"kier10");	kierrW = robKarte2(kierW,"kierW");
+					kierrQ = robKarte2(kierQ,"kierQ"); 	kierrK = robKarte2(kierK,"kierK"); 		kierrA = robKarte2(kierA,"kierA");
+					karoo9 = robKarte2(karo9,"karo9"); 	karoo10 = robKarte2(karo10,"karo10"); 	karooW = robKarte2(karoW,"karoW");
+					karooQ = robKarte2(karoQ,"karoQ"); 	karooK = robKarte2(karoK,"karoK"); 		karooA = robKarte2(karoA,"karoA");
+					trefll9 = robKarte2(trefl9,"trefl9");trefll10 = robKarte2(trefl10,"trefl10");trefllW = robKarte2(treflW,"treflW"); 
+					trefllQ = robKarte2(treflQ,"treflQ");trefllK = robKarte2(treflK,"treflK"); 	trefllA = robKarte2(treflA,"treflA"); 
+				
+					//zapisanie posiadania awersu do temp.txt
+					String tekstWyj = "";
+					tekstWyj += money + " ";
+					for(int i=0; i<4; i++) {
+						tekstWyj += wins[i] + " ";
+						tekstWyj += loses[i] + " ";
+						tekstWyj += draws[i] + " ";
+	  				}
+	  				for(int i=0; i<11; i++) {
+	  					tekstWyj += memory[i] + " ";
+	  				}
+	  				tekstWyj += streak + " ";
+	  				tekstWyj += awers;
+	  				
+					FileWriter plikWyj;
+					try {
+						plikWyj = new FileWriter(fileTemp);
+						plikWyj.write(tekstWyj);
+						plikWyj.close();
+					} catch (IOException e1) {
+						e1.printStackTrace();
+					}
+				}
 			}
-		});	
+		});
+		
 		wyjscie.addActionListener(new ActionListener() { //wyjscie z programu
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -1262,7 +864,120 @@ public class Poker extends JFrame {
 		});	
 	}
 	
-	public ImagePanel robKarte(BufferedImage karta, String nazwaKarty) {
+	public class SliderChangeListener implements ChangeListener{ 	//zmiana jêzyka polski-0 angielski-1		
+		@Override
+		public void stateChanged(ChangeEvent arg0) {
+			jezyk = jezykSlider.getValue();
+			if(jezyk==1) {
+				System.out.println("Chosen language: english");
+				napisGlowny.setText("POKER");
+				poziomyTrudnosci.setText("Difficulty levels:");
+				lvl1.setText("Easy");
+				lvl2.setText("Medium");
+				lvl3.setText("Hard (WARNING! long calculation time)");
+				lvl4.setText("Experimental (long calculation time)");
+				sklep.setText("Buy another card design for 150$");
+				importuj.setText("Import a game");
+				zapisz.setText("Save last game to file");
+				wyjscie.setText("Exit");
+				
+				tabbedPane.removeAll();
+				tabbedPane.addTab("Main Menu", glownyPanel);
+				tabbedPane.addTab("Statistics", statsPanel);
+				
+				infS0.setText("Your hands:	");
+				infS1.setText("No layout     "+memory[1]);
+				infS2.setText("1 Pair        "+memory[2]);
+				infS3.setText("2 Pair        "+memory[3]);
+				infS4.setText("Three o/a kind   "+memory[4]);
+				infS5.setText("Straight      "+memory[5]);
+				infS6.setText("Full house    "+memory[6]);
+				infS7.setText("Flush         "+memory[7]);
+				infS8.setText("Four o/a kind  "+memory[8]);
+				infS9.setText("Straight flush  "+memory[9]);
+				infS10.setText("Total        "+memory[10]);
+				infA0.setText("Level: easy");
+				infA1.setText("Wins     "+wins[0]);
+				infA2.setText("Loses    "+loses[0]);
+				infA3.setText("Draws    "+draws[0]);
+				infA4.setText("Total    "+games[0]);
+				infA5.setText("Win ratio  "+df.format(winRatio[0]));
+				infB0.setText("Level: medium");
+				infB1.setText("Wins     "+wins[1]);
+				infB2.setText("Loses    "+loses[1]);
+				infB3.setText("Draws    "+draws[1]);
+				infB4.setText("Total    "+games[1]);
+				infB5.setText("Win ratio  "+df.format(winRatio[1]));
+				infC0.setText("Level: hard");
+				infC1.setText("Wins     "+wins[2]);
+				infC2.setText("Loses    "+loses[2]);
+				infC3.setText("Draws    "+draws[2]);
+				infC4.setText("Total    "+games[2]);
+				infC5.setText("Win ratio  "+df.format(winRatio[2]));
+				infD0.setText("Total");
+				infD1.setText("Wins     "+wins[3]);
+				infD2.setText("Loses    "+loses[3]);
+				infD3.setText("Draws    "+draws[3]);
+				infD4.setText("Total    "+games[3]);
+				infD5.setText("Win ratio  "+df.format(winRatio[3]));
+			}
+			if(jezyk==0) {
+				System.out.println("Wybrany jêzyk: polski");
+				napisGlowny.setText("POKER");
+				poziomyTrudnosci.setText("Poziomy trudnoœci:");
+				lvl1.setText("£atwy");
+				lvl2.setText("Œredni");
+				lvl3.setText("Trudny (UWAGA! d³ugi czas kalkulacji)");
+				lvl4.setText("Eksperimentalny (d³ugi czas kalkulacji)");
+				sklep.setText("Kup inny awers kart za 150 monet");
+				importuj.setText("Importuj partiê");
+				zapisz.setText("Zapisz ostatni¹ zagran¹ partie");
+				wyjscie.setText("Wyjœcie");
+				
+				tabbedPane.removeAll();
+				tabbedPane.addTab("Menu G³ówne", glownyPanel);
+				tabbedPane.addTab("Statystyki", statsPanel);
+				
+				infS0.setText("Twoje uk³ady karciane");
+				infS1.setText("Brak uk³adu  "+memory[1]);
+				infS2.setText("Para        "+memory[2]);
+				infS3.setText("2 Pary      "+memory[3]);
+				infS4.setText("Trójka      "+memory[4]);
+				infS5.setText("Streat      "+memory[5]);
+				infS6.setText("Full        "+memory[6]);
+				infS7.setText("Kolor       "+memory[7]);
+				infS8.setText("Kareta      "+memory[8]);
+				infS9.setText("Poker       "+memory[9]);
+				infS10.setText("£¹cznie    "+memory[10]);
+				infA0.setText("Poziom: ³atwy");
+				infA1.setText("Zwyciêstwa   "+wins[0]);
+				infA2.setText("Przegrane    "+loses[0]);
+				infA3.setText("Remisy       "+draws[0]);
+				infA4.setText("£¹cznie      "+games[0]);
+				infA5.setText("% zwyciêstw  "+df.format(winRatio[0]));
+				infB0.setText("Poziom: œredni");
+				infB1.setText("Zwyciêstwa   "+wins[1]);
+				infB2.setText("Przegrane    "+loses[1]);
+				infB3.setText("Remisy       "+draws[1]);
+				infB4.setText("£¹cznie      "+games[1]);
+				infB5.setText("% zwyciêstw  "+df.format(winRatio[1]));
+				infC0.setText("Poziom: trudny");
+				infC1.setText("Zwyciêstwa   "+wins[2]);
+				infC2.setText("Przegrane    "+loses[2]);
+				infC3.setText("Remisy       "+draws[2]);
+				infC4.setText("£¹cznie      "+games[2]);
+				infC5.setText("% zwyciêstw  "+df.format(winRatio[2]));
+				infD0.setText("£¹cznie");
+				infD1.setText("Zwyciêstwa   "+wins[3]);
+				infD2.setText("Przegrane    "+loses[3]);
+				infD3.setText("Remisy       "+draws[3]);
+				infD4.setText("£¹cznie      "+games[3]);
+				infD5.setText("% zwyciêstw  "+df.format(winRatio[3]));
+			}
+		}
+	}
+	
+	public ImagePanel robKarte(BufferedImage karta, String nazwaKarty) { //rewers=0
 		Graphics g1 = getGraphics();
 		File inputFile1 = new File(nazwaKarty + ".png");
         try {
@@ -1274,9 +989,24 @@ public class Poker extends JFrame {
         return new ImagePanel(karta);
 	}
 	
-	public static void main(String[] args) { //----------main
+	public ImagePanel robKarte2(BufferedImage karta, String nazwaKarty) { //rewers=1
+		Graphics g1 = getGraphics();
+		File inputFile1 = new File(nazwaKarty + "2.png");
+        try {
+        	karta = ImageIO.read(inputFile1);
+        } catch(IOException ex) {
+            System.out.println(ex.getMessage());
+        }
+ 
+        return new ImagePanel(karta);
+	}
+	
+	
+	public static void main(String[] args) { //main
 		Poker poker = new Poker();
 		poker.setVisible(true);
 	}
 
 }
+
+

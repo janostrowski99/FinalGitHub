@@ -95,7 +95,7 @@ public class StartTheScore implements Runnable {
 				k++;
 			}
 		}
-		System.out.println("Rêka bot:");
+		/*System.out.println("Rêka bot:");
 		for(int i=0;i<5;i++)
 		{
 			System.out.println(handBot.colour[i]+" "+handBot.number[i]);
@@ -104,7 +104,7 @@ public class StartTheScore implements Runnable {
 		for(int i=0;i<5;i++)
 		{
 			System.out.println(handPlayer.colour[i]+" "+handPlayer.number[i]);
-		}
+		}*/
 		score=handBot.Judge(handPlayer); //1-wygrana 0-przegrana
 
 		//for(int i=0;i<5;i++) {

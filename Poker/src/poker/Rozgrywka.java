@@ -31,7 +31,7 @@ public class Rozgrywka extends JFrame {
 	String[] daneString;
 	String zwyciezca, uklad3, uklad4;
 	
-	Rozgrywka(String dane, String nazwaPliku) throws HeadlessException {
+	Rozgrywka(String dane, String nazwaPliku, int jezyk, int awers) throws HeadlessException {
 		Rozgrywka temp = this;
 		this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 		this.setSize(500,800);
@@ -64,121 +64,235 @@ public class Rozgrywka extends JFrame {
 		karo9 = null; karo10 = null; karoW = null; karoQ = null; karoK = null; karoA = null;
 		trefl9 = null; trefl10 = null; treflW = null; treflQ = null; treflK = null; treflA = null;
 		
-		//karty
-		pikk9 = robKarte(pik9,"pik9"); 		pikk10 = robKarte(pik10,"pik10"); 		pikkW = robKarte(pikW,"pikW"); 
-		pikkQ = robKarte(pikQ,"pikQ"); 		pikkK = robKarte(pikK,"pikK"); 			pikkA = robKarte(pikA,"pikA"); 
-		kierr9 = robKarte(kier9,"kier9"); 	kierr10 = robKarte(kier10,"kier10");	kierrW = robKarte(kierW,"kierW");
-		kierrQ = robKarte(kierQ,"kierQ"); 	kierrK = robKarte(kierK,"kierK"); 		kierrA = robKarte(kierA,"kierA");
-		karoo9 = robKarte(karo9,"karo9"); 	karoo10 = robKarte(karo10,"karo10"); 	karooW = robKarte(karoW,"karoW");
-		karooQ = robKarte(karoQ,"karoQ"); 	karooK = robKarte(karoK,"karoK"); 		karooA = robKarte(karoA,"karoA");
-		trefll9 = robKarte(trefl9,"trefl9");trefll10 = robKarte(trefl10,"trefl10"); trefllW = robKarte(treflW,"treflW"); 
-		trefllQ = robKarte(treflQ,"treflQ");trefllK = robKarte(treflK,"treflK"); 	trefllA = robKarte(treflA,"treflA"); 
+		if(awers==0) {
+			//karty
+			pikk9 = robKarte(pik9,"pik9"); 		pikk10 = robKarte(pik10,"pik10"); 		pikkW = robKarte(pikW,"pikW"); 
+			pikkQ = robKarte(pikQ,"pikQ"); 		pikkK = robKarte(pikK,"pikK"); 			pikkA = robKarte(pikA,"pikA"); 
+			kierr9 = robKarte(kier9,"kier9"); 	kierr10 = robKarte(kier10,"kier10");	kierrW = robKarte(kierW,"kierW");
+			kierrQ = robKarte(kierQ,"kierQ"); 	kierrK = robKarte(kierK,"kierK"); 		kierrA = robKarte(kierA,"kierA");
+			karoo9 = robKarte(karo9,"karo9"); 	karoo10 = robKarte(karo10,"karo10"); 	karooW = robKarte(karoW,"karoW");
+			karooQ = robKarte(karoQ,"karoQ"); 	karooK = robKarte(karoK,"karoK"); 		karooA = robKarte(karoA,"karoA");
+			trefll9 = robKarte(trefl9,"trefl9");trefll10 = robKarte(trefl10,"trefl10"); trefllW = robKarte(treflW,"treflW"); 
+			trefllQ = robKarte(treflQ,"treflQ");trefllK = robKarte(treflK,"treflK"); 	trefllA = robKarte(treflA,"treflA"); 
 
-		//kopie kart (nieodrzucone karty s¹ nadpisane w najni¿szy panel kart, odrzucone zostaj¹ w "odrzucone")
-		pikkk9 = robKarte(pik9,"pik9"); 	pikkk10 = robKarte(pik10,"pik10"); 		pikkkW = robKarte(pikW,"pikW"); 
-		pikkkQ = robKarte(pikQ,"pikQ"); 	pikkkK = robKarte(pikK,"pikK"); 		pikkkA = robKarte(pikA,"pikA"); 
-		kierrr9 = robKarte(kier9,"kier9"); 	kierrr10 = robKarte(kier10,"kier10");	kierrrW = robKarte(kierW,"kierW");
-		kierrrQ = robKarte(kierQ,"kierQ"); 	kierrrK = robKarte(kierK,"kierK"); 		kierrrA = robKarte(kierA,"kierA");
-		karooo9 = robKarte(karo9,"karo9"); 	karooo10 = robKarte(karo10,"karo10"); 	karoooW = robKarte(karoW,"karoW");
-		karoooQ = robKarte(karoQ,"karoQ"); 	karoooK = robKarte(karoK,"karoK"); 		karoooA = robKarte(karoA,"karoA");
-		treflll9 = robKarte(trefl9,"trefl9");treflll10 = robKarte(trefl10,"trefl10");treflllW = robKarte(treflW,"treflW"); 
-		treflllQ = robKarte(treflQ,"treflQ");treflllK = robKarte(treflK,"treflK"); 	treflllA = robKarte(treflA,"treflA"); 
+			//kopie kart (nieodrzucone karty s¹ nadpisane w najni¿szy panel kart, odrzucone zostaj¹ w "odrzucone")
+			pikkk9 = robKarte(pik9,"pik9"); 	pikkk10 = robKarte(pik10,"pik10"); 		pikkkW = robKarte(pikW,"pikW"); 
+			pikkkQ = robKarte(pikQ,"pikQ"); 	pikkkK = robKarte(pikK,"pikK"); 		pikkkA = robKarte(pikA,"pikA"); 
+			kierrr9 = robKarte(kier9,"kier9"); 	kierrr10 = robKarte(kier10,"kier10");	kierrrW = robKarte(kierW,"kierW");
+			kierrrQ = robKarte(kierQ,"kierQ"); 	kierrrK = robKarte(kierK,"kierK"); 		kierrrA = robKarte(kierA,"kierA");
+			karooo9 = robKarte(karo9,"karo9"); 	karooo10 = robKarte(karo10,"karo10"); 	karoooW = robKarte(karoW,"karoW");
+			karoooQ = robKarte(karoQ,"karoQ"); 	karoooK = robKarte(karoK,"karoK"); 		karoooA = robKarte(karoA,"karoA");
+			treflll9 = robKarte(trefl9,"trefl9");treflll10 = robKarte(trefl10,"trefl10");treflllW = robKarte(treflW,"treflW"); 
+			treflllQ = robKarte(treflQ,"treflQ");treflllK = robKarte(treflK,"treflK"); 	treflllA = robKarte(treflA,"treflA"); 
+		}
+		
+		if(awers==1) {
+			pikk9 = robKarte2(pik9,"pik9"); 	pikk10 = robKarte2(pik10,"pik10"); 		pikkW = robKarte2(pikW,"pikW"); 
+			pikkQ = robKarte2(pikQ,"pikQ"); 	pikkK = robKarte2(pikK,"pikK"); 		pikkA = robKarte2(pikA,"pikA"); 
+			kierr9 = robKarte2(kier9,"kier9"); 	kierr10 = robKarte2(kier10,"kier10");	kierrW = robKarte2(kierW,"kierW");
+			kierrQ = robKarte2(kierQ,"kierQ"); 	kierrK = robKarte2(kierK,"kierK"); 		kierrA = robKarte2(kierA,"kierA");
+			karoo9 = robKarte2(karo9,"karo9"); 	karoo10 = robKarte2(karo10,"karo10"); 	karooW = robKarte2(karoW,"karoW");
+			karooQ = robKarte2(karoQ,"karoQ"); 	karooK = robKarte2(karoK,"karoK"); 		karooA = robKarte2(karoA,"karoA");
+			trefll9 = robKarte2(trefl9,"trefl9");trefll10 = robKarte2(trefl10,"trefl10"); trefllW = robKarte2(treflW,"treflW"); 
+			trefllQ = robKarte2(treflQ,"treflQ");trefllK = robKarte2(treflK,"treflK"); 	trefllA = robKarte2(treflA,"treflA"); 
 
+			pikkk9 = robKarte2(pik9,"pik9"); 	pikkk10 = robKarte2(pik10,"pik10"); 	pikkkW = robKarte2(pikW,"pikW"); 
+			pikkkQ = robKarte2(pikQ,"pikQ"); 	pikkkK = robKarte2(pikK,"pikK"); 		pikkkA = robKarte2(pikA,"pikA"); 
+			kierrr9 = robKarte2(kier9,"kier9"); kierrr10 = robKarte2(kier10,"kier10");	kierrrW = robKarte2(kierW,"kierW");
+			kierrrQ = robKarte2(kierQ,"kierQ"); kierrrK = robKarte2(kierK,"kierK"); 	kierrrA = robKarte2(kierA,"kierA");
+			karooo9 = robKarte2(karo9,"karo9"); karooo10 = robKarte2(karo10,"karo10"); 	karoooW = robKarte2(karoW,"karoW");
+			karoooQ = robKarte2(karoQ,"karoQ"); karoooK = robKarte2(karoK,"karoK"); 	karoooA = robKarte2(karoA,"karoA");
+			treflll9 = robKarte2(trefl9,"trefl9");treflll10 = robKarte2(trefl10,"trefl10");treflllW = robKarte2(treflW,"treflW"); 
+			treflllQ = robKarte2(treflQ,"treflQ");treflllK = robKarte2(treflK,"treflK"); treflllA = robKarte2(treflA,"treflA"); 
+		}
+		
 		//System.out.println("Dane: " + dane);
 		
 		daneString = dane.split("\\s"); //dane do stringu -> do intów
 		for(int i=0; i<40; i=i+5)
-			System.out.println(daneString[i]+" "+daneString[i+1]+" "+daneString[i+2]+" "+daneString[i+3]+" "+daneString[i+4]);
-		
-		//kto wygra³
-		switch(daneString[42]) {
-			case "0":
-				zwyciezca = "komputer";
-				break;
-			case "1":
-				zwyciezca = "gracz";
-				break;
-			case "2":
-				zwyciezca = "remis";
-				break;
+			//System.out.println(daneString[i]+" "+daneString[i+1]+" "+daneString[i+2]+" "+daneString[i+3]+" "+daneString[i+4]);
+		if(jezyk==0) {
+			//kto wygra³
+			switch(daneString[42]) {
+				case "0":
+					zwyciezca = "komputer";
+					break;
+				case "1":
+					zwyciezca = "gracz";
+					break;
+				case "2":
+					zwyciezca = "remis";
+					break;
+			}
+			
+			//uk³ad komputera
+			switch(daneString[40]) {
+				case "1":
+					uklad3 = "Brak uk³adu";
+					break;
+				case "2":
+					uklad3 = "Para";
+					break;
+				case "3":
+					uklad3 = "2 Pary";
+					break;
+				case "4":
+					uklad3 = "Trójka";
+					break;
+				case "5":
+					uklad3 = "Streat";
+					break;
+				case "6":
+					uklad3 = "Full";
+					break;
+				case "7":
+					uklad3 = "Kolor";
+					break;
+				case "8":
+					uklad3 = "Kareta";
+					break;
+				case "9":
+					uklad3 = "Poker";
+					break;
+			}
+			
+			//uk³ad gracza
+			switch(daneString[41]) {
+				case "1":
+					uklad4 = "Brak uk³adu";
+					break;
+				case "2":
+					uklad4 = "Para";
+					break;
+				case "3":
+					uklad4 = "2 Pary";
+					break;
+				case "4":
+					uklad4 = "Trójka";
+					break;
+				case "5":
+					uklad4 = "Streat";
+					break;
+				case "6":
+					uklad4 = "Full";
+					break;
+				case "7":
+					uklad4 = "Kolor";
+					break;
+				case "8":
+					uklad4 = "Kareta";
+					break;
+				case "9":
+					uklad4 = "Poker";
+					break;
+			}
+			
+			if(nazwaPliku=="brak") //po zakoñczeniu rozgrywki
+				graNr = new JLabel("Wynik rozgrywki:");
+			else			   //po zaimportowaniu
+				graNr = new JLabel("Gra z pliku: " + nazwaPliku);
+			zwycL = new JLabel("Zwyciêzca: " + zwyciezca);
+			uklad1 = new JLabel("Uk³ad komputera: " + uklad3);
+			uklad2 = new JLabel("Uk³ad gracza: " + uklad4);
+			kompPrzed = new JLabel("Uk³ad komputera przed wymian¹:     ");
+			kompPo = new JLabel("Uk³ad komputera po wymianie: ");
+			kompWym = new JLabel("Wymienione karty przez komputer:   ");
+			graczWym = new JLabel("Wymienione karty przez gracza:   ");
+			graczPrzed = new JLabel("Uk³ad gracza przed wymian¹:        ");
+			graczPo = new JLabel("Uk³ad gracza po wymianie: ");
+			wyjdz = new JButton("Skoñczy³em ogl¹daæ");
 		}
 		
-		//uk³ad komputera
-		switch(daneString[40]) {
-			case "1":
-				uklad3 = "Brak uk³adu";
-				break;
-			case "2":
-				uklad3 = "Para";
-				break;
-			case "3":
-				uklad3 = "2 Pary";
-				break;
-			case "4":
-				uklad3 = "Trójka";
-				break;
-			case "5":
-				uklad3 = "Streat";
-				break;
-			case "6":
-				uklad3 = "Full";
-				break;
-			case "7":
-				uklad3 = "Kolor";
-				break;
-			case "8":
-				uklad3 = "Kareta";
-				break;
-			case "9":
-				uklad3 = "Poker";
-				break;
+		if(jezyk==1) {
+			switch(daneString[42]) {
+				case "0":
+					zwyciezca = "computer";
+					break;
+				case "1":
+					zwyciezca = "player";
+					break;
+				case "2":
+					zwyciezca = "a draw";
+					break;
+			}
+			
+			switch(daneString[40]) {
+				case "1":
+					uklad3 = "No layout";
+					break;
+				case "2":
+					uklad3 = "1 Pair";
+					break;
+				case "3":
+					uklad3 = "2 Pair";
+					break;
+				case "4":
+					uklad3 = "Three o/a kind";
+					break;
+				case "5":
+					uklad3 = "Straight";
+					break;
+				case "6":
+					uklad3 = "Full house";
+					break;
+				case "7":
+					uklad3 = "Flush";
+					break;
+				case "8":
+					uklad3 = "Four o/a kind";
+					break;
+				case "9":
+					uklad3 = "Straight flush";
+					break;
+			}
+	
+			switch(daneString[41]) {
+				case "1":
+					uklad4 = "No layout";
+					break;
+				case "2":
+					uklad4 = "1 Pair";
+					break;
+				case "3":
+					uklad4 = "2 Pair";
+					break;
+				case "4":
+					uklad4 = "Three o/a kind";
+					break;
+				case "5":
+					uklad4 = "Straight";
+					break;
+				case "6":
+					uklad4 = "Full house";
+					break;
+				case "7":
+					uklad4 = "Flush";
+					break;
+				case "8":
+					uklad4 = "Four o/a kind";
+					break;
+				case "9":
+					uklad4 = "Straight flush";
+					break;
+			}
+			
+			if(nazwaPliku=="brak") 
+				graNr = new JLabel("The result of the game:");
+			else			 
+				graNr = new JLabel("Game from the file: " + nazwaPliku);
+			zwycL = new JLabel("Winner: " + zwyciezca);
+			uklad1 = new JLabel("Computer's layout: " + uklad3);
+			uklad2 = new JLabel("Player's layout: " + uklad4);
+			kompPrzed = new JLabel("Computer's layout before cards exchange: ");
+			kompPo = new JLabel("Computer's layout after cards exchange: ");
+			kompWym = new JLabel("Cards thrown by computer:   ");
+			graczWym = new JLabel("Cards thrown by player:   ");
+			graczPrzed = new JLabel("Player's layout before cards exchange:  ");
+			graczPo = new JLabel("Player's layout after cards exchange: ");
+			wyjdz = new JButton("Go back to main menu");
 		}
 		
-		switch(daneString[41]) {
-			case "1":
-				uklad4 = "Brak uk³adu";
-				break;
-			case "2":
-				uklad4 = "Para";
-				break;
-			case "3":
-				uklad4 = "2 Pary";
-				break;
-			case "4":
-				uklad4 = "Trójka";
-				break;
-			case "5":
-				uklad4 = "Streat";
-				break;
-			case "6":
-				uklad4 = "Full";
-				break;
-			case "7":
-				uklad4 = "Kolor";
-				break;
-			case "8":
-				uklad4 = "Kareta";
-				break;
-			case "9":
-				uklad4 = "Poker";
-				break;
-		}
-		
-			//jêzyk polski
-		if(nazwaPliku=="brak") //po zakoñczeniu rozgrywki
-			graNr = new JLabel("Wynik rozgrywki:");
-		else			   //po zaimportowaniu
-			graNr = new JLabel("Gra z pliku: " + nazwaPliku);
-		zwycL = new JLabel("Zwyciêzca: " + zwyciezca);
-		uklad1 = new JLabel("Uk³ad komputera: " + uklad3);
-		uklad2 = new JLabel("Uk³ad gracza: " + uklad4);
-		kompPrzed = new JLabel("Uk³ad komputera przed wymian¹:     ");
-		kompPo = new JLabel("Uk³ad komputera po wymianie: ");
-		kompWym = new JLabel("Wymienione karty przez komputer:   ");
-		graczWym = new JLabel("Wymienione karty przez gracza:   ");
-		graczPrzed = new JLabel("Uk³ad gracza przed wymian¹:        ");
-		graczPo = new JLabel("Uk³ad gracza po wymianie: ");
-		wyjdz = new JButton("Skoñczy³em ogl¹daæ");
+				
 		
 		pan1.add(graNr);
 		pan4.setLayout(new GridLayout(1,2));
@@ -822,6 +936,18 @@ public class Rozgrywka extends JFrame {
 	public ImagePanel robKarte(BufferedImage karta, String nazwaKarty) {
 		Graphics g1 = getGraphics();
 		File inputFile1 = new File(nazwaKarty + ".png");
+        try {
+        	karta = ImageIO.read(inputFile1);
+        } catch(IOException ex) {
+            System.out.println(ex.getMessage());
+        }
+ 
+        return new ImagePanel(karta);
+	}
+	
+	public ImagePanel robKarte2(BufferedImage karta, String nazwaKarty) {
+		Graphics g1 = getGraphics();
+		File inputFile1 = new File(nazwaKarty + "2.png");
         try {
         	karta = ImageIO.read(inputFile1);
         } catch(IOException ex) {

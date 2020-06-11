@@ -6,6 +6,8 @@ import javax.swing.JPanel;
 
 
 public class ImagePanel extends JPanel { //panel z grafik¹
+
+	private static final long serialVersionUID = 1L;
 	BufferedImage image;
 	public ImagePanel(BufferedImage a) {
 		super();
